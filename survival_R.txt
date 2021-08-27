@@ -1,0 +1,59 @@
+library(ggfortify)
+library(survival)
+library(survminer)
+
+tmp <- read.delim("ISR survival.txt", header=T, stringsAsFactors=F)
+end.date=tmp$ISR
+end.date[end.date==0]="2019-09-26"
+end.date=as.Date(end.date)
+
+start.date=as.Date(tmp[,1])
+days=end.date-start.date
+ISR=rep(0, 684)
+ISR[tmp$ISR!=0]=1
+
+GRS.d=rep(0, 684)
+GRS.d[tmp$GRS>2]=1
+GRS.d <- as.factor(GRS.d)
+GRS.d <- relevel(GRS.d, "0")
+
+surv.data=data.frame(ISR=ISR, days=days, HD=tmp$Hemodialysis, train=tmp$train, test=tmp$test, GRS=tmp$GRS, GRS.d=GRS.d)
+table(surv.data$HD)
+
+# n=630
+tmp.2=surv.data[surv.data$HD==0, ]
+xtabs(~tmp.2$ISR + tmp.2$GRS)
+surv_object <- Surv(time = tmp.2$days, event = tmp.2$ISR)
+summary(coxph(surv_object ~ tmp.2$GRS.d))
+fit <- survfit(surv_object ~ tmp.2$GRS.d, data = tmp.2)
+
+font=c(16, "bold", "black")
+png("km_all.png", height=500, width=600) #
+ggsurvplot(fit, pval=F, ylab="Instent restenosis free probability", xlab="Duration (years)",
+           legend.title = "GRS", 
+           legend.labs = c("Low risk (0-2)", "High risk (>2)"),
+           xscale=365, break.time.by=365, palette=c("limegreen", "red"),
+           censor.shape=124, size=1.5, 
+           font.x=font, font.y=font, font.tickslab=font, font.legend=font,
+           tables.theme = theme_cleantable(),
+           risk.table = T, risk.table.y.text = T)
+dev.off()
+
+
+# test or train
+tmp.1=surv.data[surv.data$train==1, ]
+xtabs(~tmp.1$ISR + tmp.1$GRS)
+surv_object <- Surv(time = tmp.1$days, event = tmp.1$ISR)
+summary(coxph(surv_object ~ tmp.1$GRS.d))
+fit <- survfit(surv_object ~ tmp.1$GRS.d, data = tmp.1)
+
+png("km_training.png", height=500, width=600)
+ggsurvplot(fit, pval=F, ylab="Instent restenosis free probability", xlab="Duration (years)",
+           legend.title = "GRS", 
+           legend.labs = c("Low risk (0-2)", "High risk (>2)"),
+           xscale=365, break.time.by=365, palette=c("limegreen", "red"),
+           censor.shape=124, size=1.5, 
+           font.x=font, font.y=font, font.tickslab=font, font.legend=font,
+           tables.theme = theme_cleantable(),
+           risk.table = T, risk.table.y.text = T)
+dev.off()
